@@ -180,35 +180,39 @@ export default function Live() {
         });
     };
 
-    const ConnectionBanner = () => (
-        <div style={{
-            padding: '8px 16px',
-            background: wsStatus === 'connected' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-            borderBottom: '1px solid rgba(255,255,255,0.05)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            fontSize: 12,
-            fontWeight: 600,
-            color: wsStatus === 'connected' ? '#4ade80' : '#60a5fa',
-            width: '100%',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-            backdropFilter: 'blur(8px)'
-        }}>
+    const ConnectionBanner = () => {
+        if (wsStatus !== 'connected') return null;
+
+        return (
             <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: 'currentColor',
-                boxShadow: '0 0 8px currentColor'
-            }} />
-            <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {wsStatus === 'connected' && `📡 MODO LOCAL: ${serverName || 'Controlador'}`}
-            </span>
-        </div>
-    );
+                padding: '8px 16px',
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#4ade80',
+                width: '100%',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                backdropFilter: 'blur(8px)'
+            }}>
+                <div style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: 'currentColor',
+                    boxShadow: '0 0 8px currentColor'
+                }} />
+                <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    📡 MODO LOCAL: {serverName || 'Controlador'}
+                </span>
+            </div>
+        );
+    };
 
     if (wsStatus !== 'connected') {
         return (
