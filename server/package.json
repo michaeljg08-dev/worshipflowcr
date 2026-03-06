@@ -1,0 +1,47 @@
+{
+    "name": "worship-flow-server",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "main": "main.cjs",
+    "build": {
+        "appId": "com.worshipflow.desktop",
+        "productName": "WorshipFlow",
+        "directories": {
+            "output": "dist-electron"
+        },
+        "win": {
+            "target": [
+                "nsis"
+            ]
+        },
+        "files": [
+            "src/**/*",
+            "public/**/*",
+            "package.json",
+            "main.cjs"
+        ]
+    },
+    "scripts": {
+        "start": "node src/index.js",
+        "dev": "npx nodemon src/index.js",
+        "build:exe": "node build-exe.js"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.98.0",
+        "cors": "^2.8.5",
+        "dotenv": "^17.3.1",
+        "express": "^4.21.0",
+        "multer": "^1.4.5-lts.1",
+        "sql.js": "^1.11.0",
+        "uuid": "^11.0.0",
+        "ws": "^8.18.0"
+    },
+    "devDependencies": {
+        "concurrently": "^9.2.1",
+        "electron": "^40.7.0",
+        "electron-builder": "^26.8.1",
+        "electron-packager": "^17.1.2",
+        "wait-on": "^9.0.4"
+    }
+}

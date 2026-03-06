@@ -1,0 +1,11 @@
+{
+  "name": "worship-flow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema integral de proyección, planificación y ensayo musical",
+  "scripts": {
+    "server": "cd server && node src/index.js",
+    "server:dev": "cd server && npx nodemon src/index.js",
+    "install:all": "cd server && npm install"
+  }
+}
