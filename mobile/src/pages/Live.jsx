@@ -230,8 +230,11 @@ export default function Live() {
 
                     {discoveredIp && (
                         <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 24 }}>
-                            <p style={{ fontSize: 12, color: '#4ade80', fontWeight: 'bold', marginBottom: 12 }}>
+                            <p style={{ fontSize: 12, color: '#4ade80', fontWeight: 'bold', marginBottom: 4 }}>
                                 ✅ CONTROLADOR DETECTADO EN LA RED
+                            </p>
+                            <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 12, opacity: 0.7 }}>
+                                IP: {discoveredIp}
                             </p>
                             <a
                                 href={`http://${discoveredIp}:3000/mobile`}

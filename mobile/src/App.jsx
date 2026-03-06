@@ -74,7 +74,10 @@ export default function App() {
         }
       } catch (e) { /* Silent fail */ }
     };
+
     discoverLocal();
+    const interval = setInterval(discoverLocal, 10000); // Cada 10 segundos
+    return () => clearInterval(interval);
   }, []);
 
   // Detect if we are in the local /mobile path or a public root domain
