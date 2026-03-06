@@ -14,6 +14,7 @@ import usersRouter from './routes/users.js';
 import mediaRouter from './routes/media.js';
 import syncRouter from './routes/sync.js';
 import { getLanIp } from './utils/network.js';
+import { clearLiveState } from './supabase.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -97,3 +98,13 @@ start().catch(err => {
     console.error('Failed to start server:', err);
     process.exit(1);
 });
+
+// ─── Graceful Shutdown ───────────────────────────────────────
+async function shutdown() {
+    console.log('\n🛑 Intentando apagado ordenado...');
+    await clearLiveState();
+    process.exit(0);
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

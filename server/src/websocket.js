@@ -61,8 +61,13 @@ export function initWebSocket(server) {
 
     console.log('⚡ WebSocket server ready at /ws');
 
-    // Anunciar IP en Supabase una vez al arrancar para autodescubrimiento local
+    // Anunciar IP en Supabase al arrancar y cada 60 segundos (Heartbeat)
     pushLiveState();
+    const heartbeat = setInterval(pushLiveState, 60000);
+
+    wss.on('close', () => {
+        clearInterval(heartbeat);
+    });
 
     return wss;
 }

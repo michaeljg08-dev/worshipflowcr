@@ -78,3 +78,20 @@ export const pushLiveState = async () => {
         console.error('❌ Cloud Live Bridge Error (LAN IP):', err.message);
     }
 };
+/**
+ * Clears the LAN IP from Supabase when the server shuts down.
+ */
+export const clearLiveState = async () => {
+    if (!supabase) return;
+    try {
+        const { error } = await supabase
+            .from('live_state')
+            .update({ lan_ip: null, updated_at: new Date().toISOString() })
+            .eq('id', 'default');
+
+        if (error) throw error;
+        console.log('🧹 LAN IP cleared from Supabase (Server Shutdown)');
+    } catch (err) {
+        console.error('❌ Cloud Live Bridge Error (Clear IP):', err.message);
+    }
+};

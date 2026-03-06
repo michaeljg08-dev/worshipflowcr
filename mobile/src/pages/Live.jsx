@@ -57,6 +57,8 @@ export default function Live() {
         if (wsStatus === 'connected') return;
         const interval = setInterval(() => {
             const ip = localStorage.getItem('discovered_ip');
+            // If the IP was removed from localStorage (by the App's heartbeat check), 
+            // we update our local state to hide the button.
             if (ip !== discoveredIp) {
                 setDiscoveredIp(ip);
             }

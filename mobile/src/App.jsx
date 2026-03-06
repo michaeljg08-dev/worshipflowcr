@@ -58,9 +58,19 @@ export default function App() {
     const discoverLocal = async () => {
       if (!supabase) return;
       try {
-        const { data } = await supabase.from('live_state').select('lan_ip').eq('id', 'default').single();
-        if (data?.lan_ip) {
-          localStorage.setItem('discovered_ip', data.lan_ip);
+        const { data } = await supabase.from('live_state').select('lan_ip, updated_at').eq('id', 'default').single();
+        if (data?.lan_ip && data?.updated_at) {
+          const lastUpdate = new Date(data.updated_at).getTime();
+          const now = new Date().getTime();
+          const isFresh = (now - lastUpdate) < (1000 * 60 * 3); // 3 minutos
+
+          if (isFresh) {
+            localStorage.setItem('discovered_ip', data.lan_ip);
+          } else {
+            localStorage.removeItem('discovered_ip');
+          }
+        } else {
+          localStorage.removeItem('discovered_ip');
         }
       } catch (e) { /* Silent fail */ }
     };
