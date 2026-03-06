@@ -50,6 +50,19 @@ export default function Live() {
     const [wsStatus, setWsStatus] = useState('connecting');
     const [serverName, setServerName] = useState('');
     const sectionRefs = useRef({});
+    const [discoveredIp, setDiscoveredIp] = useState(localStorage.getItem('discovered_ip'));
+
+    // Reactive check for discovered_ip in localStorage
+    useEffect(() => {
+        if (wsStatus === 'connected') return;
+        const interval = setInterval(() => {
+            const ip = localStorage.getItem('discovered_ip');
+            if (ip !== discoveredIp) {
+                setDiscoveredIp(ip);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [discoveredIp, wsStatus]);
 
     // Escuchar el estado de la proyección general y la posición actual
     useEffect(() => {
@@ -58,6 +71,9 @@ export default function Live() {
                 setWsStatus('connected');
                 // Fetch server name if possible
                 api.status().then(s => setServerName(s.name)).catch(() => setServerName('Local'));
+                // Clear discovery once connected
+                localStorage.removeItem('discovered_ip');
+                setDiscoveredIp(null);
             },
             () => {
                 setWsStatus('disconnected');
@@ -189,7 +205,7 @@ export default function Live() {
                 boxShadow: '0 0 8px currentColor'
             }} />
             <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {wsStatus === 'connected' ? `📡 MODO LOCAL: ${serverName || 'Controlador'}` : `☁️ MODO REMOTO: ${serverName || 'Sincronizando...'}`}
+                {wsStatus === 'connected' && `📡 MODO LOCAL: ${serverName || 'Controlador'}`}
             </span>
         </div>
     );
@@ -206,13 +222,13 @@ export default function Live() {
                         Para ver las diapositivas en tiempo real, conéctate al Wi-Fi de la iglesia.
                     </p>
 
-                    {localStorage.getItem('discovered_ip') && (
+                    {discoveredIp && (
                         <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 24 }}>
                             <p style={{ fontSize: 12, color: '#4ade80', fontWeight: 'bold', marginBottom: 12 }}>
                                 ✅ CONTROLADOR DETECTADO EN LA RED
                             </p>
                             <a
-                                href={`http://${localStorage.getItem('discovered_ip')}:3000/mobile`}
+                                href={`http://${discoveredIp}:3000/mobile`}
                                 style={{
                                     background: 'var(--primary)',
                                     color: 'white',

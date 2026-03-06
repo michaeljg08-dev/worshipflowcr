@@ -60,20 +60,9 @@ export default function App() {
       try {
         const { data } = await supabase.from('live_state').select('lan_ip').eq('id', 'default').single();
         if (data?.lan_ip) {
-          // Guardamos la IP descubierta para el modo Live
           localStorage.setItem('discovered_ip', data.lan_ip);
-
-          try {
-            const probe = await fetch(`http://${data.lan_ip}:3000/api/status`, { signal: AbortSignal.timeout(1500), mode: 'cors' });
-            if (probe && probe.ok) {
-              const isPublic = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('vercel.app');
-              if (isPublic && localStorage.getItem('server_ip') !== data.lan_ip) {
-                setServerIp(data.lan_ip);
-              }
-            }
-          } catch (err) { /* Silent fail for discovery probe */ }
         }
-      } catch (e) { /* Silent fail for supabase discovery */ }
+      } catch (e) { /* Silent fail */ }
     };
     discoverLocal();
   }, []);
