@@ -420,9 +420,34 @@ export default function Live() {
         ? (currentPlaylist?.songs || []).slice(effectiveSongIdx + 1)
         : [];
 
+    // DEBUG INFO (temporary - will be removed after debugging)
+    const debugInfo = {
+        wsStatus,
+        isLive: !!isLive,
+        isSong: !!isSong,
+        songIdx: liveState.songIdx,
+        effectiveSongIdx,
+        playlistId: liveState?.playlistId,
+        hasPlaylist: !!currentPlaylist,
+        playlistSongsCount: currentPlaylist?.songs?.length || 0,
+        remainingCount: remainingSongs.length,
+        currentSongId: currentSong?.song_id,
+        hasFullSong: !!fullSong,
+        hasChordpro: !!currentSong?.chordpro,
+        sectionsCount: sections.length,
+        minimalSongId: minimalSong?.song_id,
+    };
+
     return (
         <div className="live-page" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
             <ConnectionBanner />
+            {/* DEBUG PANEL - TEMPORARY */}
+            <div style={{ padding: '6px 12px', background: '#1a1a2e', fontSize: 9, color: '#aaa', borderBottom: '1px solid #333', lineHeight: 1.6, fontFamily: 'monospace' }}>
+                🔍 ws:{debugInfo.wsStatus} | live:{String(debugInfo.isLive)} | song:{String(debugInfo.isSong)} | idx:{String(debugInfo.songIdx)}→{String(debugInfo.effectiveSongIdx)}
+                | playlist:{debugInfo.hasPlaylist ? `✅(${debugInfo.playlistSongsCount}songs)` : '❌'}
+                | remaining:{debugInfo.remainingCount} | fullSong:{String(debugInfo.hasFullSong)} | chordpro:{String(debugInfo.hasChordpro)} | sections:{debugInfo.sectionsCount}
+                | songId:{String(debugInfo.currentSongId)?.slice(0, 8)}
+            </div>
             <div className="song-view" style={{ flex: 1, padding: '0 20px 20px', overflowY: 'auto' }}>
                 <header style={{
                     position: 'sticky', top: -20, background: 'var(--bg-dark)',
