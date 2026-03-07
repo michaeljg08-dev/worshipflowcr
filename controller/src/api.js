@@ -67,6 +67,12 @@ export const api = {
         getAll: () => req('/users/settings/all'),
         set: (key, value) => req(`/users/settings/${key}`, { method: 'PUT', body: { value } }),
     },
+    bibles: {
+        list: () => req('/bibles'),
+        getBooks: (bibleId) => req(`/bibles/${bibleId}/books`),
+        getVerses: (bibleId, bookId, chapter) => req(`/bibles/${bibleId}/books/${bookId}/chapters/${chapter}/verses`),
+        import: (data) => req('/bibles/import', { method: 'POST', body: data }),
+    },
     status: () => req('/status'),
 };
 

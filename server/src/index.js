@@ -13,6 +13,7 @@ import eventsRouter from './routes/events.js';
 import usersRouter from './routes/users.js';
 import mediaRouter from './routes/media.js';
 import syncRouter from './routes/sync.js';
+import biblesRouter from './routes/bibles.js';
 import { getLanIp } from './utils/network.js';
 import { clearLiveState } from './supabase.js';
 
@@ -42,6 +43,7 @@ app.use('/api/events', eventsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/media', mediaRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/bibles', biblesRouter);
 
 // ─── Serve Frontend ─────────────────────────────────────────
 app.use(express.static(join(__dirname, '..', 'public')));

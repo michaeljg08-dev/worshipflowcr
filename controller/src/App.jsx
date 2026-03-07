@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 import Sidebar from './components/Sidebar';
+import LiveIndicator from './components/LiveIndicator';
 import { ToastProvider } from './components/Toast';
 
 // Lazy load pages
@@ -13,6 +14,7 @@ const Events = React.lazy(() => import('./pages/Events'));
 const Projection = React.lazy(() => import('./pages/Projection'));
 const Users = React.lazy(() => import('./pages/Users'));
 const Settings = React.lazy(() => import('./pages/Settings'));
+const Bibles = React.lazy(() => import('./pages/Bibles'));
 const ProjectionDisplay = React.lazy(() => import('./pages/ProjectionDisplay'));
 
 const queryClient = new QueryClient({
@@ -45,11 +47,19 @@ function Layout({ children }) {
                     </Suspense>
                 </div>
             </div>
+            <LiveIndicator />
         </div>
     );
 }
 
+import { connectWS } from './api';
+
 export default function App() {
+    React.useEffect(() => {
+        // Conectar al WS al arrancar para que el servidor detecte que la app está abierta
+        connectWS();
+    }, []);
+
     return (
         <QueryClientProvider client={queryClient}>
             <ToastProvider>
@@ -58,6 +68,7 @@ export default function App() {
                         <Route path="/" element={<Layout><Dashboard /></Layout>} />
                         <Route path="/songs" element={<Layout><Songs /></Layout>} />
                         <Route path="/playlists" element={<Layout><Playlists /></Layout>} />
+                        <Route path="/bibles" element={<Layout><Bibles /></Layout>} />
                         <Route path="/events" element={<Layout><Events /></Layout>} />
                         <Route path="/projection" element={
                             <div className="layout">

@@ -402,7 +402,7 @@ export default function Projection() {
 
                 setIsLive(true);
                 setIsBlack(false);
-                wsSend('live:start', { playlistId: selectedPlaylistId, songDetails: currentSong });
+                wsSend('live:start', { playlistId: selectedPlaylistId, songIdx: currentSongIdx, songDetails: currentSong });
                 if (currentSlide) sendSlide(currentSlide, currentSong, config);
                 toast.info('Proyección en vivo iniciada');
             };

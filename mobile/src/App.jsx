@@ -62,9 +62,9 @@ export default function App() {
         if (data?.lan_ip && data?.updated_at) {
           const lastUpdate = new Date(data.updated_at).getTime();
           const now = new Date().getTime();
-          const isFresh = (now - lastUpdate) < (1000 * 60 * 3); // 3 minutos
+          const isFresh = (now - lastUpdate) < (1000 * 40); // 40 segundos para reflejar cierre rápido
 
-          if (isFresh) {
+          if (isFresh && data.lan_ip) {
             localStorage.setItem('discovered_ip', data.lan_ip);
           } else {
             localStorage.removeItem('discovered_ip');
@@ -76,7 +76,7 @@ export default function App() {
     };
 
     discoverLocal();
-    const interval = setInterval(discoverLocal, 10000); // Cada 10 segundos
+    const interval = setInterval(discoverLocal, 5000); // Cada 5 segundos para agilidad
     return () => clearInterval(interval);
   }, []);
 

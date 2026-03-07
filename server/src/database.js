@@ -208,6 +208,44 @@ function createTables() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bibles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      abbreviation TEXT DEFAULT '',
+      language TEXT DEFAULT 'es',
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bible_books (
+      id TEXT PRIMARY KEY,
+      bible_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      abbreviation TEXT DEFAULT '',
+      book_number INTEGER NOT NULL,
+      chapters_count INTEGER DEFAULT 0,
+      testament TEXT DEFAULT 'OT',
+      FOREIGN KEY (bible_id) REFERENCES bibles(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bible_verses (
+      id TEXT PRIMARY KEY,
+      bible_id TEXT NOT NULL,
+      book_id TEXT NOT NULL,
+      chapter INTEGER NOT NULL,
+      verse INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      FOREIGN KEY (bible_id) REFERENCES bibles(id) ON DELETE CASCADE,
+      FOREIGN KEY (book_id) REFERENCES bible_books(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run('CREATE INDEX IF NOT EXISTS idx_verses_lookup ON bible_verses (bible_id, book_id, chapter, verse)');
+
   // Insert default settings
   const hasSettings = db.exec("SELECT COUNT(*) as c FROM settings");
   if (hasSettings[0]?.values[0][0] === 0) {

@@ -19,8 +19,43 @@ export default function Home() {
     };
     // But we can show a small syncing indicator if needed
 
+    const [discoveredIp, setDiscoveredIp] = React.useState(localStorage.getItem('discovered_ip'));
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setDiscoveredIp(localStorage.getItem('discovered_ip'));
+        }, 2000);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="home-page">
+            {discoveredIp && (
+                <div style={{
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    borderRadius: 12,
+                    padding: '12px 16px',
+                    marginBottom: 20,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    animation: 'fadeIn 0.3s ease-out'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80' }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', letterSpacing: 0.5 }}>COMPUTADORA DETECTADA</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>IP: {discoveredIp}</span>
+                        <a href={`http://${discoveredIp}:3000/mobile`} style={{
+                            fontSize: 12, fontWeight: 800, color: 'white', background: 'var(--success)',
+                            padding: '6px 14px', borderRadius: 8, textDecoration: 'none'
+                        }}>VINCULAR AHORA</a>
+                    </div>
+                </div>
+            )}
+
             <header style={{ marginBottom: 24 }}>
                 <h1 style={{ fontSize: 28, fontWeight: 800 }}>Hola, Músico 👋</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Próximos servicios y ensayos</p>

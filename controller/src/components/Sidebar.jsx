@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-    LayoutDashboard, Music, ListMusic, Calendar, Monitor,
-    Users, Settings, Wifi, WifiOff, ChevronRight
+    LayoutDashboard, Music, List, Calendar, Monitor,
+    Layout, Settings, Users, Share2,
+    MonitorPlay,
+    Book
 } from 'lucide-react';
 import { connectWS } from '../api';
 
@@ -12,7 +14,8 @@ const navItems = [
     { to: '/projection', icon: Monitor, label: 'Proyección' },
     { section: 'Contenido' },
     { to: '/songs', icon: Music, label: 'Canciones' },
-    { to: '/playlists', icon: ListMusic, label: 'Playlists' },
+    { to: '/playlists', icon: List, label: 'Playlists' },
+    { to: '/bibles', icon: Book, label: 'Biblias' },
     { to: '/events', icon: Calendar, label: 'Eventos' },
     { section: 'Configuración' },
     { to: '/users', icon: Users, label: 'Músicos' },

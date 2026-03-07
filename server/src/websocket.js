@@ -23,6 +23,11 @@ export function initWebSocket(server) {
         clients.set(ws, { id: clientId, type: clientType, connectedAt: new Date() });
         console.log(`🔌 WS connected: ${clientType} (${clientId}) — Total: ${clients.size}`);
 
+        // Si es el controlador, forzamos un anuncio inmediato a la nube
+        if (clientType === 'controller') {
+            pushLiveState();
+        }
+
         // Send welcome + connected clients info
         ws.send(JSON.stringify({
             type: 'connected',
@@ -61,9 +66,9 @@ export function initWebSocket(server) {
 
     console.log('⚡ WebSocket server ready at /ws');
 
-    // Anunciar IP en Supabase al arrancar y cada 60 segundos (Heartbeat)
+    // Anunciar IP en Supabase al arrancar y cada 15 segundos (Heartbeat)
     pushLiveState();
-    const heartbeat = setInterval(pushLiveState, 60000);
+    const heartbeat = setInterval(pushLiveState, 15000);
 
     wss.on('close', () => {
         clearInterval(heartbeat);
@@ -79,7 +84,13 @@ function handleMessage(sender, msg) {
     switch (type) {
         // ─── Projection Control ─────────────────────
         case 'projection:slide':
-            if (!currentState.isActive || currentState.item?.type !== 'song') {
+            if (data.type === 'bible') {
+                currentState = {
+                    ...currentState,
+                    isActive: true,
+                    item: { type: 'bible', data: data.config }
+                };
+            } else if (!currentState.isActive || currentState.item?.type !== 'song') {
                 currentState = {
                     ...currentState,
                     isActive: true,
@@ -89,7 +100,11 @@ function handleMessage(sender, msg) {
             // Forward slide to all projection clients
             broadcastTo('projection', { type: 'projection:slide', data });
             // Also notify mobile clients about current position
-            broadcastTo('mobile', { type: 'live:position', data });
+            if (data.type === 'bible') {
+                broadcastTo('mobile', { type: 'projection:slide', data });
+            } else {
+                broadcastTo('mobile', { type: 'live:position', data });
+            }
             broadcast('live:state', currentState);
             break;
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MonitorPlay, Clock, Zap, ChevronUp, ChevronDown, ListEnd } from 'lucide-react';
+import { MonitorPlay, Clock, Zap, ChevronUp, ChevronDown, ListEnd, Book } from 'lucide-react';
 import { api, connectWS, wsOn } from '../api';
 import { parseChordPro } from '../utils/chordpro';
 import { useSyncData } from '../hooks/useSyncData';
@@ -43,13 +43,109 @@ function ChordLine({ text }) {
 
 const KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+// ─── Componente para renderizar una canción restante de la playlist ──
+// Each song is its own component so it can call useSyncData to fetch full data (including chordpro)
+function RemainingSongEntry({ song, songIndex, sectionRefs }) {
+    const songId = song.song_id || `remaining-${songIndex}`;
+    // Fetch full song data from sync cache (this is what makes chordpro available)
+    const { data: fullSongData } = useSyncData('songs', song.song_id);
+    // Merge: full song (has chordpro) + playlist_songs overlay (has custom_key, etc.)
+    const mergedSong = fullSongData ? { ...fullSongData, ...song } : song;
+
+    const songChordPro = mergedSong.chordpro || '';
+    const songSections = parseChordPro(songChordPro);
+    const songKey = mergedSong.custom_key || mergedSong.song_key;
+
+    return (
+        <React.Fragment>
+            {/* ── Subtle Song Divider ── */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                margin: '8px 0',
+                padding: '10px 0'
+            }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    fontSize: 13, fontWeight: 700, color: 'var(--text-muted)',
+                    whiteSpace: 'nowrap'
+                }}>
+                    <span>{mergedSong.title}</span>
+                    {songKey && (
+                        <span style={{
+                            background: 'var(--bg-input)', color: 'var(--primary)',
+                            padding: '2px 8px', borderRadius: 4,
+                            fontSize: 11, fontWeight: 700
+                        }}>
+                            {songKey}
+                        </span>
+                    )}
+                    {mergedSong.bpm && (
+                        <span style={{ fontSize: 11, opacity: 0.6 }}>{mergedSong.bpm} BPM</span>
+                    )}
+                </div>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            </div>
+
+            {/* ── Song Sections ── */}
+            {songSections.length > 0 ? songSections.map((sec, i) => {
+                const refKey = songId + ':' + sec.label;
+                return (
+                    <div
+                        key={`${songId}-${i}`}
+                        ref={el => sectionRefs.current[refKey] = el}
+                        className="card"
+                        style={{
+                            margin: 0,
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg-card)',
+                            opacity: 0.7
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <span className="section-badge" style={{
+                                background: 'var(--bg-input)', color: 'var(--text-muted)',
+                                margin: 0
+                            }}>
+                                {sec.label}
+                            </span>
+                        </div>
+                        <div style={{
+                            fontFamily: 'Inter', fontSize: 16,
+                            color: 'var(--text-primary)', fontWeight: 500
+                        }}>
+                            {sec.content.split('\n').map((line, k) => (
+                                <ChordLine key={k} text={line} />
+                            ))}
+                        </div>
+                    </div>
+                );
+            }) : (
+                /* Fallback: show title when no ChordPro */
+                <div className="card" style={{
+                    margin: 0, border: '1px solid var(--border)',
+                    background: 'var(--bg-card)', opacity: 0.7
+                }}>
+                    <div style={{
+                        fontFamily: 'Inter', fontSize: 16,
+                        color: 'var(--text-primary)', fontWeight: 500,
+                        whiteSpace: 'pre-wrap', lineHeight: 1.8
+                    }}>
+                        {mergedSong.title || 'Sin letra disponible'}
+                    </div>
+                </div>
+            )}
+        </React.Fragment>
+    );
+}
+
 export default function Live() {
     const [liveState, setLiveState] = useState({ isActive: false, playlistId: null, songIdx: null, item: null });
     const [currentSectionLabel, setCurrentSectionLabel] = useState(null);
     const [localKey, setLocalKey] = useState(null);
     const [wsStatus, setWsStatus] = useState('connecting');
     const [serverName, setServerName] = useState('');
-    const sectionRefs = useRef({});
+    const sectionRefs = useRef({}); // keyed as `songId:sectionLabel`
     const [discoveredIp, setDiscoveredIp] = useState(localStorage.getItem('discovered_ip'));
 
     // Reactive check for discovered_ip in localStorage
@@ -100,15 +196,17 @@ export default function Live() {
     }, [wsStatus]);
 
     // Auto-scroll optimizado: Se dispara cuando cambia la sección o el estado
+    // Refs are scoped by song_id to avoid collisions when songs share labels (e.g. "Verso 1")
     useEffect(() => {
-        if (currentSectionLabel && sectionRefs.current[currentSectionLabel]) {
-            const element = sectionRefs.current[currentSectionLabel];
-            // Usamos requestAnimationFrame para asegurar que el DOM esté listo
+        if (!currentSectionLabel || !currentSong?.song_id) return;
+        const refKey = currentSong.song_id + ':' + currentSectionLabel;
+        const element = sectionRefs.current[refKey];
+        if (element) {
             requestAnimationFrame(() => {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             });
         }
-    }, [currentSectionLabel, liveState]);
+    }, [currentSectionLabel, liveState, currentSong?.song_id]);
 
     const isLive = liveState?.isActive && liveState?.item;
     const isSong = isLive && liveState.item.type === 'song';
@@ -271,6 +369,29 @@ export default function Live() {
     }
 
     if (!isSong || !currentSong) {
+        if (liveState.item?.type === 'bible') {
+            const bibleData = liveState.item.data;
+            return (
+                <div className="live-page">
+                    <ConnectionBanner />
+                    <div className="card" style={{ padding: '40px 20px', margin: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Book size={24} style={{ color: 'var(--primary)' }} />
+                                <h2 style={{ fontSize: 20, margin: 0 }}>{bibleData.title}</h2>
+                            </div>
+                            <div className="badge badge-primary">{bibleData.source || 'Biblia'}</div>
+                        </div>
+                        <div style={{
+                            fontSize: 22, lineHeight: 1.6, color: 'var(--text-primary)',
+                            fontWeight: 500, fontStyle: 'italic'
+                        }}>
+                            "{currentSectionLabel || '...'}"
+                        </div>
+                    </div>
+                </div>
+            );
+        }
         return (
             <div className="live-page">
                 <ConnectionBanner />
@@ -284,9 +405,20 @@ export default function Live() {
     }
 
     const sections = parseChordPro(getTransposedChordPro());
-    const nextSong = currentPlaylist && typeof liveState.songIdx === 'number'
-        ? currentPlaylist?.songs?.[liveState.songIdx + 1]
-        : null;
+
+    // Determine the current song index in the playlist
+    // songIdx comes from the controller via WS, but may be null/undefined initially
+    let effectiveSongIdx = liveState.songIdx;
+    if (typeof effectiveSongIdx !== 'number' && currentPlaylist?.songs && currentSong?.song_id) {
+        // Infer index by matching song_id in the playlist
+        effectiveSongIdx = currentPlaylist.songs.findIndex(s => s.song_id === currentSong.song_id);
+        if (effectiveSongIdx === -1) effectiveSongIdx = null;
+    }
+
+    // Get ALL remaining songs after the current one
+    const remainingSongs = currentPlaylist && typeof effectiveSongIdx === 'number'
+        ? (currentPlaylist?.songs || []).slice(effectiveSongIdx + 1)
+        : [];
 
     return (
         <div className="live-page" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -331,15 +463,15 @@ export default function Live() {
                     </div>
                 </header>
 
-                <div className="song-content" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                    {sections.length === 0 ? (
-                        <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: 40 }}>Esta canción no contiene letra en formato ChordPro.</div>
-                    ) : sections.map((sec, i) => {
+                <div className="song-content" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* ── Current Song Sections ── */}
+                    {sections.length > 0 ? sections.map((sec, i) => {
                         const isHighlighted = currentSectionLabel === sec.label;
+                        const refKey = (currentSong?.song_id || 'current') + ':' + sec.label;
                         return (
                             <div
-                                key={i}
-                                ref={el => sectionRefs.current[sec.label] = el}
+                                key={`current-${i}`}
+                                ref={el => sectionRefs.current[refKey] = el}
                                 className={`card ${isHighlighted ? 'highlighted' : ''}`}
                                 style={{
                                     margin: 0,
@@ -360,7 +492,7 @@ export default function Live() {
                                 </div>
                                 <div style={{
                                     fontFamily: 'Inter', fontSize: 16,
-                                    color: isHighlighted ? 'var(--text-primary)' : 'var(--text-primary)',
+                                    color: 'var(--text-primary)',
                                     fontWeight: 500
                                 }}>
                                     {sec.content.split('\n').map((line, k) => (
@@ -369,29 +501,28 @@ export default function Live() {
                                 </div>
                             </div>
                         );
-                    })}
-
-                    {nextSong && (
-                        <div style={{
-                            marginTop: 40, padding: 16, borderRadius: 12,
-                            background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
-                            display: 'flex', alignItems: 'center', gap: 16
-                        }}>
-                            <div style={{ background: 'var(--bg-dark)', padding: 12, borderRadius: 12, color: 'var(--text-muted)' }}>
-                                <ListEnd size={24} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
-                                    Próxima Canción
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                                    <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{nextSong.title}</div>
-                                    <div style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 700 }}>{nextSong.song_key || ''}</div>
-                                    {nextSong.bpm && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{nextSong.bpm} BPM</div>}
-                                </div>
+                    }) : (
+                        /* Fallback: show plain lyrics/title when no ChordPro */
+                        <div className="card" style={{ margin: 0, border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                            <div style={{
+                                fontFamily: 'Inter', fontSize: 16,
+                                color: 'var(--text-primary)', fontWeight: 500,
+                                whiteSpace: 'pre-wrap', lineHeight: 1.8
+                            }}>
+                                {currentSong.title || 'Sin letra disponible'}
                             </div>
                         </div>
                     )}
+
+                    {/* ── Remaining Songs – Continuous Flow ── */}
+                    {remainingSongs.map((song, songIndex) => (
+                        <RemainingSongEntry
+                            key={song.song_id || `remaining-${songIndex}`}
+                            song={song}
+                            songIndex={songIndex}
+                            sectionRefs={sectionRefs}
+                        />
+                    ))}
                 </div>
 
                 <style>{`
