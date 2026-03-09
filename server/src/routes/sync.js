@@ -39,7 +39,8 @@ router.get('/changes', (req, res) => {
 
         return res.json({
             changes,
-            serverTime: new Date().toISOString().replace('T', ' ').substring(0, 19)
+            serverTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            sync_version: 'v2_chordpro_support'
         });
     }
 
@@ -57,7 +58,8 @@ router.get('/changes', (req, res) => {
 
     res.json({
         changes,
-        serverTime
+        serverTime,
+        sync_version: 'v2_chordpro_support'
     });
 });
 
