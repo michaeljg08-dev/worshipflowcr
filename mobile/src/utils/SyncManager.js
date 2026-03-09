@@ -5,18 +5,43 @@ const CACHE_VERSION = 'v2_chordpro_support';
 
 class SyncManager {
     constructor() {
-        const storedVersion = localStorage.getItem('sync_version');
-        if (storedVersion !== CACHE_VERSION) {
-            console.log('⚠️ Cache version mismatch. Clearing local database...');
-            localStorage.removeItem('sync_cache');
-            localStorage.setItem('lastSync', '1970-01-01 00:00:00');
-            localStorage.setItem('sync_version', CACHE_VERSION);
-        }
-
-        this.lastSync = localStorage.getItem('lastSync') || '1970-01-01 00:00:00';
-        this.cache = JSON.parse(localStorage.getItem('sync_cache') || '{"songs":{}, "events":{}, "playlists":{}, "users":{}}');
+        this.cacheVersion = CACHE_VERSION;
+        this.lastSync = '1970-01-01 00:00:00';
+        this.cache = { "songs": {}, "events": {}, "playlists": {}, "users": {} };
         this.isSyncing = false;
         this.listeners = [];
+        this.initialized = false;
+
+        this.load();
+    }
+
+    load() {
+        try {
+            const storedVersion = localStorage.getItem('sync_version');
+            if (storedVersion !== this.cacheVersion) {
+                console.log('⚠️ Cache version mismatch or first run. Initializing...');
+                this.clear();
+                return;
+            }
+
+            this.lastSync = localStorage.getItem('lastSync') || '1970-01-01 00:00:00';
+            const storedCache = localStorage.getItem('sync_cache');
+            if (storedCache) {
+                this.cache = JSON.parse(storedCache);
+            }
+        } catch (e) {
+            console.error('❌ Failed to load sync cache:', e);
+            this.clear();
+        }
+    }
+
+    clear() {
+        localStorage.removeItem('sync_cache');
+        localStorage.setItem('lastSync', '1970-01-01 00:00:00');
+        localStorage.setItem('sync_version', this.cacheVersion);
+        this.lastSync = '1970-01-01 00:00:00';
+        this.cache = { "songs": {}, "events": {}, "playlists": {}, "users": {} };
+        this.save();
     }
 
     async sync() {
@@ -34,9 +59,9 @@ class SyncManager {
                 this.save();
                 this.notify();
             }
-            console.log('✅ Local Sync completed. New timestamp:', this.lastSync);
+            console.log('✅ Local Sync completed. New timestamp:', this.lastSync, 'Records:', res.changes?.length || 0);
         } catch (err) {
-            console.warn('⚠️ Local Sync failed, attempting Cloud Fallback (Supabase)...', err);
+            console.warn('⚠️ Local Sync failed, attempting Cloud Fallback (Supabase)...', err.message);
 
             // If the local network is unreachable (User is at home), query Supabase
             if (supabase) {
@@ -78,7 +103,11 @@ class SyncManager {
             }
         } finally {
             this.isSyncing = false;
-            this.notify(); // CRITICAL: Always notify so UI knows syncing stopped
+            console.log('🏁 Sync sequence finished.');
+            // We only notify here if we might have changed isSyncing state, 
+            // but we should be careful not to trigger infinite loops.
+            // Component should only re-render if data actually changed.
+            this.notify();
         }
     }
 
@@ -161,11 +190,18 @@ class SyncManager {
     }
 
     init() {
+        if (this.initialized) return;
+        this.initialized = true;
+
+        console.log('🚀 SyncManager initialized.');
         // Initial sync
         this.sync();
 
         // Listen for real-time updates to trigger sync
-        const triggerSync = () => this.sync();
+        const triggerSync = () => {
+            if (this.isSyncing) return;
+            this.sync();
+        };
         wsOn('sync:update', triggerSync);
 
         // Listen to specific database entities

@@ -4,8 +4,10 @@ const getSavedIp = () => {
     const isLocalHost = host === 'localhost' || host === '127.0.0.1';
     const isPublicWeb = host.includes('netlify.app') || host.includes('vercel.app') || host.includes('github.io');
 
-    // Only auto-save IP if it's a real IP address or a local network name (not the public cloud link)
-    if (!ip && !isLocalHost && !isPublicWeb) {
+    // If we're accessing via an IP directly (e.g. 172.30.10.166), use that as the server IP
+    const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(host);
+
+    if (!ip && (isIp || (!isLocalHost && !isPublicWeb))) {
         ip = host;
         localStorage.setItem('server_ip', ip);
     }

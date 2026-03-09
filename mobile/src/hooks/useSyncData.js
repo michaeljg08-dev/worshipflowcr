@@ -31,7 +31,9 @@ export function useSyncData(table, id = null, options = {}) {
         const unsubscribe = syncManager.subscribe((cache) => {
             setIsSyncing(syncManager.isSyncing);
             if (id !== undefined && id !== null) {
-                setData(options.resolved ? resolve(table, id) : cache[table]?.[id] || null);
+                const newData = options.resolved ? resolve(table, id) : cache[table]?.[id] || null;
+                // Simple equality check to avoid redundant state updates
+                setData(prev => JSON.stringify(prev) === JSON.stringify(newData) ? prev : newData);
             } else {
                 setData(null);
             }
