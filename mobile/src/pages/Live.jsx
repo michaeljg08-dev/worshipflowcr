@@ -131,7 +131,7 @@ function RemainingSongEntry({ song, songIndex, sectionRefs }) {
                         color: 'var(--text-primary)', fontWeight: 500,
                         whiteSpace: 'pre-wrap', lineHeight: 1.8
                     }}>
-                        {mergedSong.title || 'Sin letra disponible'}
+                        {mergedSong.lyrics || mergedSong.title || 'Sin letra disponible'}
                     </div>
                 </div>
             )}
@@ -189,24 +189,22 @@ export default function Live() {
             setCurrentSectionLabel(data.label);
         });
 
+        // The server broadcasts Bible verses as 'projection:slide' rather than 'live:position'
+        const unsubSlide = wsOn('projection:slide', (data) => {
+            console.log('Projection slide update:', data);
+            if (data?.type === 'bible') {
+                setCurrentSectionLabel(data.content);
+            }
+        });
+
         return () => {
             unsubState();
             unsubPos();
+            unsubSlide();
         };
-    }, [wsStatus]);
+    }, []);
 
-    // Auto-scroll optimizado: Se dispara cuando cambia la sección o el estado
-    // Refs are scoped by song_id to avoid collisions when songs share labels (e.g. "Verso 1")
-    useEffect(() => {
-        if (!currentSectionLabel || !currentSong?.song_id) return;
-        const refKey = currentSong.song_id + ':' + currentSectionLabel;
-        const element = sectionRefs.current[refKey];
-        if (element) {
-            requestAnimationFrame(() => {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            });
-        }
-    }, [currentSectionLabel, liveState, currentSong?.song_id]);
+    // (Removed auto-scroll useEffect from here)
 
     const isLive = liveState?.isActive && liveState?.item;
     const isSong = isLive && liveState.item.type === 'song';
@@ -230,6 +228,19 @@ export default function Live() {
 
     // Fetch the playlist to calculate the next song
     const { data: currentPlaylist } = useSyncData('playlists', liveState?.playlistId, { resolved: true });
+
+    // Auto-scroll optimizado: Se dispara cuando cambia la sección o el estado
+    // Refs are scoped by song_id to avoid collisions when songs share labels (e.g. "Verso 1")
+    useEffect(() => {
+        if (!currentSectionLabel || !currentSong?.song_id) return;
+        const refKey = currentSong.song_id + ':' + currentSectionLabel;
+        const element = sectionRefs.current[refKey];
+        if (element) {
+            requestAnimationFrame(() => {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+    }, [currentSectionLabel, liveState, currentSong?.song_id]);
 
     // Initial load of the local key when a new song starts
     useEffect(() => {
@@ -355,72 +366,35 @@ export default function Live() {
         );
     }
 
-    if (!isLive) {
+    // Solo mostrar recuadro de espera puro si no hay playlist precargada
+    if (!currentPlaylist && !isLive) {
         return (
             <div className="live-page">
                 <ConnectionBanner />
                 <div className="card" style={{ textAlign: 'center', padding: '60px 20px', margin: 20 }}>
                     <MonitorPlay size={48} style={{ color: 'var(--text-muted)', marginBottom: 20, opacity: 0.5 }} />
                     <h2 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Sin Proyección</h2>
-                    <p style={{ color: 'var(--text-muted)' }}>Esperando a que inicie la proyección en la computadora principal...</p>
+                    <p style={{ color: 'var(--text-muted)' }}>Música y listado de canciones se cargarán aquí al iniciar...</p>
                 </div>
             </div>
         );
     }
 
-    if (!isSong || !currentSong) {
-        if (liveState.item?.type === 'bible') {
-            const bibleData = liveState.item.data;
-            return (
-                <div className="live-page">
-                    <ConnectionBanner />
-                    <div className="card" style={{ padding: '40px 20px', margin: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <Book size={24} style={{ color: 'var(--primary)' }} />
-                                <h2 style={{ fontSize: 20, margin: 0 }}>{bibleData.title}</h2>
-                            </div>
-                            <div className="badge badge-primary">{bibleData.source || 'Biblia'}</div>
-                        </div>
-                        <div style={{
-                            fontSize: 22, lineHeight: 1.6, color: 'var(--text-primary)',
-                            fontWeight: 500, fontStyle: 'italic'
-                        }}>
-                            "{currentSectionLabel || '...'}"
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-        return (
-            <div className="live-page">
-                <ConnectionBanner />
-                <div className="card" style={{ textAlign: 'center', padding: '60px 20px', margin: 20 }}>
-                    <MonitorPlay size={48} style={{ color: 'var(--primary)', marginBottom: 20 }} />
-                    <h2 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Proyectando: {liveState.item.type === 'title' ? 'Título' : 'Elemento visual'}</h2>
-                    <p style={{ color: 'var(--text-muted)' }}>La pantalla principal está proyectando algo distinto a una canción.</p>
-                </div>
-            </div>
-        );
-    }
+    const sections = currentSong ? parseChordPro(getTransposedChordPro()) : [];
 
-    const sections = parseChordPro(getTransposedChordPro());
-
-    // Determine the current song index in the playlist
-    // songIdx comes from the controller via WS, but may be null/undefined initially
+    // Determinar el índice actual
     let effectiveSongIdx = liveState.songIdx;
     if (typeof effectiveSongIdx !== 'number' && currentPlaylist?.songs && currentSong?.song_id) {
-        // Infer index by matching song_id in the playlist
         effectiveSongIdx = currentPlaylist.songs.findIndex(s => s.song_id === currentSong.song_id);
         if (effectiveSongIdx === -1) effectiveSongIdx = null;
+    } else if (typeof effectiveSongIdx !== 'number') {
+        // En caso de preselección sin Live iniciado, tratamos todo como restante
+        effectiveSongIdx = -1;
     }
 
-    // Get ALL remaining songs after the current one
-    const remainingSongs = currentPlaylist && typeof effectiveSongIdx === 'number'
-        ? (currentPlaylist?.songs || []).slice(effectiveSongIdx + 1)
-        : [];
+    const allSongs = currentPlaylist?.songs || (currentSong ? [currentSong] : []);
 
-    // DEBUG INFO (temporary - will be removed after debugging)
+    // DEBUG INFO
     const debugInfo = {
         wsStatus,
         isLive: !!isLive,
@@ -430,12 +404,10 @@ export default function Live() {
         playlistId: liveState?.playlistId,
         hasPlaylist: !!currentPlaylist,
         playlistSongsCount: currentPlaylist?.songs?.length || 0,
-        remainingCount: remainingSongs.length,
         currentSongId: currentSong?.song_id,
         hasFullSong: !!fullSong,
         hasChordpro: !!currentSong?.chordpro,
-        sectionsCount: sections.length,
-        minimalSongId: minimalSong?.song_id,
+        sectionsCount: (currentSong ? parseChordPro(getTransposedChordPro()) : []).length,
     };
 
     return (
@@ -445,109 +417,120 @@ export default function Live() {
             <div style={{ padding: '6px 12px', background: '#1a1a2e', fontSize: 9, color: '#aaa', borderBottom: '1px solid #333', lineHeight: 1.6, fontFamily: 'monospace' }}>
                 🔍 ws:{debugInfo.wsStatus} | live:{String(debugInfo.isLive)} | song:{String(debugInfo.isSong)} | idx:{String(debugInfo.songIdx)}→{String(debugInfo.effectiveSongIdx)}
                 | playlist:{debugInfo.hasPlaylist ? `✅(${debugInfo.playlistSongsCount}songs)` : '❌'}
-                | remaining:{debugInfo.remainingCount} | fullSong:{String(debugInfo.hasFullSong)} | chordpro:{String(debugInfo.hasChordpro)} | sections:{debugInfo.sectionsCount}
-                | songId:{String(debugInfo.currentSongId)?.slice(0, 8)}
+                | allSongs:{allSongs.length} | fullSong:{String(debugInfo.hasFullSong)} | chordpro:{String(debugInfo.hasChordpro)} | sections:{debugInfo.sectionsCount}
             </div>
+
             <div className="song-view" style={{ flex: 1, padding: '0 20px 20px', overflowY: 'auto' }}>
-                <header style={{
-                    position: 'sticky', top: -20, background: 'var(--bg-dark)',
-                    zIndex: 10, padding: '10px 0 20px', borderBottom: '1px solid var(--border)',
-                    marginBottom: 20
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <div style={{ flex: 1 }}>
-                            <h1 className="song-title" style={{ fontSize: 20, color: 'var(--primary)' }}>
-                                {currentSong.title || minimalSong?.title || 'Cargando...'}
-                            </h1>
-                            <p className="text-muted" style={{ fontSize: 13 }}>
-                                {currentSong.author || minimalSong?.author || 'Autor desconocido'}
-                            </p>
-                        </div>
-                        <div className="badge" style={{ background: 'var(--primary)', color: 'white', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', animation: 'pulse 1.5s infinite' }} />
-                            EN VIVO
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <div className="badge badge-primary" style={{ background: 'var(--primary)', padding: '6px 12px', fontSize: 14 }}>
-                                {localKey || currentSong.custom_key || currentSong.song_key || 'N/A'}
-                            </div>
-                            <button className="btn btn-sm" style={{ padding: 6, background: 'var(--bg-input)', color: 'var(--text-primary)' }} onClick={() => transpose(-1)}><ChevronDown size={16} /></button>
-                            <button className="btn btn-sm" style={{ padding: 6, background: 'var(--bg-input)', color: 'var(--text-primary)' }} onClick={() => transpose(1)}><ChevronUp size={16} /></button>
-                        </div>
-                        <div style={{ display: 'flex', gap: 12, color: 'var(--text-muted)', fontSize: 12 }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Clock size={14} /> {currentSong.bpm || minimalSong?.bpm || '--'} BPM
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Zap size={14} /> {currentSong.time_signature || minimalSong?.time_signature || '4/4'}
-                            </span>
-                        </div>
-                    </div>
-                </header>
-
                 <div className="song-content" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {/* ── Current Song Sections ── */}
-                    {sections.length > 0 ? sections.map((sec, i) => {
-                        const isHighlighted = currentSectionLabel === sec.label;
-                        const refKey = (currentSong?.song_id || 'current') + ':' + sec.label;
-                        return (
-                            <div
-                                key={`current-${i}`}
-                                ref={el => sectionRefs.current[refKey] = el}
-                                className={`card ${isHighlighted ? 'highlighted' : ''}`}
-                                style={{
-                                    margin: 0,
-                                    transition: 'all 0.4s',
-                                    border: isHighlighted ? '2px solid var(--primary)' : '1px solid var(--border)',
-                                    background: isHighlighted ? 'rgba(99,102,241,0.1)' : 'var(--bg-card)',
-                                    boxShadow: isHighlighted ? '0 0 20px rgba(99,102,241,0.2)' : 'none',
-                                    transform: isHighlighted ? 'scale(1.02)' : 'scale(1)'
-                                }}
-                            >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                    <span className="section-badge" style={{
-                                        background: isHighlighted ? 'var(--primary)' : 'var(--bg-input)',
-                                        color: 'white', margin: 0
-                                    }}>
-                                        {sec.label}
-                                    </span>
-                                </div>
-                                <div style={{
-                                    fontFamily: 'Inter', fontSize: 16,
-                                    color: 'var(--text-primary)',
-                                    fontWeight: 500
-                                }}>
-                                    {sec.content.split('\n').map((line, k) => (
-                                        <ChordLine key={k} text={line} />
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    }) : (
-                        /* Fallback: show plain lyrics/title when no ChordPro */
-                        <div className="card" style={{ margin: 0, border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-                            <div style={{
-                                fontFamily: 'Inter', fontSize: 16,
-                                color: 'var(--text-primary)', fontWeight: 500,
-                                whiteSpace: 'pre-wrap', lineHeight: 1.8
-                            }}>
-                                {currentSong.title || 'Sin letra disponible'}
-                            </div>
-                        </div>
-                    )}
+                    {allSongs.map((song, songIndex) => {
+                        const isActive = songIndex === effectiveSongIdx;
+                        const songId = song.song_id || `song-${songIndex}`;
 
-                    {/* ── Remaining Songs – Continuous Flow ── */}
-                    {remainingSongs.map((song, songIndex) => (
-                        <RemainingSongEntry
-                            key={song.song_id || `remaining-${songIndex}`}
-                            song={song}
-                            songIndex={songIndex}
-                            sectionRefs={sectionRefs}
-                        />
-                    ))}
+                        if (isActive && currentSong) {
+                            return (
+                                <div key={songId} className="active-song-block">
+                                    <header style={{
+                                        position: 'sticky', top: -20, background: 'var(--bg-dark)',
+                                        zIndex: 10, padding: '10px 0 20px', borderBottom: '1px solid var(--border)',
+                                        marginBottom: 20
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                                            <div style={{ flex: 1 }}>
+                                                <h1 className="song-title" style={{ fontSize: 20, color: 'var(--primary)' }}>
+                                                    {currentSong.title || minimalSong?.title || 'Cargando...'}
+                                                </h1>
+                                                <p className="text-muted" style={{ fontSize: 13 }}>
+                                                    {currentSong.author || minimalSong?.author || 'Autor desconocido'}
+                                                </p>
+                                            </div>
+                                            <div className="badge" style={{ background: 'var(--primary)', color: 'white', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', animation: 'pulse 1.5s infinite' }} />
+                                                EN VIVO
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                <div className="badge badge-primary" style={{ background: 'var(--primary)', padding: '6px 12px', fontSize: 14 }}>
+                                                    {localKey || currentSong.custom_key || currentSong.song_key || 'N/A'}
+                                                </div>
+                                                <button className="btn btn-sm" style={{ padding: 6, background: 'var(--bg-input)', color: 'var(--text-primary)' }} onClick={() => transpose(-1)}><ChevronDown size={16} /></button>
+                                                <button className="btn btn-sm" style={{ padding: 6, background: 'var(--bg-input)', color: 'var(--text-primary)' }} onClick={() => transpose(1)}><ChevronUp size={16} /></button>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 12, color: 'var(--text-muted)', fontSize: 12 }}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <Clock size={14} /> {currentSong.bpm || minimalSong?.bpm || '--'} BPM
+                                                </span>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <Zap size={14} /> {currentSong.time_signature || minimalSong?.time_signature || '4/4'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </header>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                        {sections.length > 0 ? sections.map((sec, i) => {
+                                            const isHighlighted = currentSectionLabel === sec.label;
+                                            const refKey = songId + ':' + sec.label;
+                                            return (
+                                                <div
+                                                    key={`${songId}-${i}`}
+                                                    ref={el => sectionRefs.current[refKey] = el}
+                                                    className={`card ${isHighlighted ? 'highlighted' : ''}`}
+                                                    style={{
+                                                        margin: 0,
+                                                        transition: 'all 0.4s',
+                                                        border: isHighlighted ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                                        background: isHighlighted ? 'rgba(99,102,241,0.1)' : 'var(--bg-card)',
+                                                        boxShadow: isHighlighted ? '0 0 20px rgba(99,102,241,0.2)' : 'none',
+                                                        transform: isHighlighted ? 'scale(1.02)' : 'scale(1)'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                        <span className="section-badge" style={{
+                                                            background: isHighlighted ? 'var(--primary)' : 'var(--bg-input)',
+                                                            color: 'white', margin: 0
+                                                        }}>
+                                                            {sec.label}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{
+                                                        fontFamily: 'Inter', fontSize: 16,
+                                                        color: 'var(--text-primary)',
+                                                        fontWeight: 500
+                                                    }}>
+                                                        {sec.content.split('\n').map((line, k) => (
+                                                            <ChordLine key={k} text={line} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        }) : (
+                                            <div className="card" style={{ margin: 0, border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                                                <div style={{
+                                                    fontFamily: 'Inter', fontSize: 18,
+                                                    color: 'var(--text-primary)', fontWeight: 500,
+                                                    whiteSpace: 'pre-wrap', lineHeight: 1.8,
+                                                    padding: 20
+                                                }}>
+                                                    {currentSong.lyrics || currentSong.title || 'Sin letra disponible'}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <RemainingSongEntry
+                                key={songId}
+                                song={song}
+                                songIndex={songIndex}
+                                sectionRefs={sectionRefs}
+                            />
+                        );
+                    })}
                 </div>
 
                 <style>{`

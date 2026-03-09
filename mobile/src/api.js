@@ -78,7 +78,7 @@ export function connectWS(onOpen, onClose) {
     if (ws && ws.readyState === 1) return ws;
 
     const url = getWsUrl();
-    if (!url || !getSavedIp()) return null;
+    if (!url) return null;
 
     try {
         ws = new WebSocket(url + '?type=mobile&id=mobile-' + Date.now());
