@@ -18,8 +18,11 @@ class SyncManager {
     load() {
         try {
             const storedVersion = localStorage.getItem('sync_version');
-            if (storedVersion !== this.cacheVersion) {
-                console.log('⚠️ Cache version mismatch or first run. Initializing...');
+            // If there's no stored version, it's a fresh install, just set it.
+            if (!storedVersion) {
+                localStorage.setItem('sync_version', this.cacheVersion);
+            } else if (storedVersion !== this.cacheVersion) {
+                console.log('⚠️ Cache version mismatch. Clearing local database...');
                 this.clear();
                 return;
             }
