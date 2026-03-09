@@ -19,9 +19,7 @@ function Layout({ children }) {
   return (
     <div className="mobile-layout">
       <div className="mobile-content">
-        <Suspense fallback={<div className="loading">Cargando...</div>}>
-          {children}
-        </Suspense>
+        {children}
       </div>
 
       <nav className="bottom-nav">
@@ -80,21 +78,28 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Detect if we are in the local /mobile path or a public root domain
-  const basename = window.location.pathname.startsWith('/mobile') ? '/mobile' : '/';
+  // More robust basename detection
+  const isLocalMobile = window.location.pathname.startsWith('/mobile');
+  const basename = isLocalMobile ? '/mobile' : '/';
+
+  console.log(`🚀 App mounting. Path: ${window.location.pathname}, Basename: ${basename}`);
 
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename={basename}>
-        <Routes>
-          <Route path="/" element={<Layout><Home /></Layout>} />
-          <Route path="/setlist" element={<Layout><Setlist /></Layout>} />
-          <Route path="/setlist/:id" element={<Layout><Setlist /></Layout>} />
-          <Route path="/song/:id" element={<Layout><SongView /></Layout>} />
-          <Route path="/songs" element={<Layout><Songs /></Layout>} />
-          <Route path="/live" element={<Layout><Live /></Layout>} />
-          <Route path="/settings" element={<Layout><NetworkSettings /></Layout>} />
-        </Routes>
+        <Suspense fallback={<div className="loading-screen" style={{ background: '#000b1d', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontFamily: 'Inter, sans-serif' }}>Cargando Worship Flow...</div>}>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/setlist" element={<Setlist />} />
+              <Route path="/setlist/:id" element={<Setlist />} />
+              <Route path="/song/:id" element={<SongView />} />
+              <Route path="/songs" element={<Songs />} />
+              <Route path="/live" element={<Live />} />
+              <Route path="/settings" element={<NetworkSettings />} />
+            </Routes>
+          </Layout>
+        </Suspense>
       </BrowserRouter>
     </QueryClientProvider>
   );
