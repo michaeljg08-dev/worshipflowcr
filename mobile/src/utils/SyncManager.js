@@ -18,13 +18,15 @@ class SyncManager {
     load() {
         try {
             const storedVersion = localStorage.getItem('sync_version');
-            // If there's no stored version, it's a fresh install, just set it.
-            if (!storedVersion) {
-                localStorage.setItem('sync_version', this.cacheVersion);
-            } else if (storedVersion !== this.cacheVersion) {
-                console.log('⚠️ Cache version mismatch. Clearing local database...');
+            // Hard rule: only clear if we HAVE a stored version and it's DIFFERENT from current.
+            // If stored is missing, we just initialize it.
+            if (storedVersion && storedVersion !== this.cacheVersion) {
+                console.log(`⚠️ Cache version mismatch (${storedVersion} vs ${this.cacheVersion}). Clearing...`);
                 this.clear();
                 return;
+            }
+            if (!storedVersion) {
+                localStorage.setItem('sync_version', this.cacheVersion);
             }
 
             this.lastSync = localStorage.getItem('lastSync') || '1970-01-01 00:00:00';
@@ -54,15 +56,26 @@ class SyncManager {
 
         try {
             // Attempt Local LAN Sync first
+            // Ensure we use the API wrapper which handles the dynamic base URL
             const res = await api.sync.changes(this.lastSync);
 
-            if (res.changes && res.changes.length > 0) {
-                this.applyChanges(res.changes);
+            if (res && res.changes) {
+                if (res.changes.length > 0) {
+                    this.applyChanges(res.changes);
+                }
                 this.lastSync = res.serverTime || new Date().toISOString();
+
+                // Only update version if the server explicitly provides one
+                if (res.sync_version && res.sync_version !== this.cacheVersion) {
+                    console.log(`✨ Server requested version update: ${res.sync_version}`);
+                    this.cacheVersion = res.sync_version;
+                    localStorage.setItem('sync_version', this.cacheVersion);
+                }
+
                 this.save();
                 this.notify();
             }
-            console.log('✅ Local Sync completed. New timestamp:', this.lastSync, 'Records:', res.changes?.length || 0);
+            console.log('✅ Local Sync completed. Records:', res?.changes?.length || 0);
         } catch (err) {
             console.warn('⚠️ Local Sync failed, attempting Cloud Fallback (Supabase)...', err.message);
 
