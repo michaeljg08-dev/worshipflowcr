@@ -53,13 +53,6 @@ class SyncManager {
                 }
                 this.lastSync = res.serverTime || new Date().toISOString();
 
-                // Only update version if the server explicitly provides one
-                if (res.sync_version && res.sync_version !== this.cacheVersion) {
-                    console.log(`✨ Server requested version update: ${res.sync_version}`);
-                    this.cacheVersion = res.sync_version;
-                    localStorage.setItem('sync_version', this.cacheVersion);
-                }
-
                 this.save();
                 this.notify();
             }
@@ -108,10 +101,6 @@ class SyncManager {
         } finally {
             this.isSyncing = false;
             console.log('🏁 Sync sequence finished.');
-            // We only notify here if we might have changed isSyncing state, 
-            // but we should be careful not to trigger infinite loops.
-            // Component should only re-render if data actually changed.
-            this.notify();
         }
     }
 
@@ -136,8 +125,13 @@ class SyncManager {
     }
 
     save() {
-        localStorage.setItem('lastSync', this.lastSync);
-        localStorage.setItem('sync_cache', JSON.stringify(this.cache));
+        try {
+            localStorage.setItem('lastSync', this.lastSync);
+            localStorage.setItem('sync_cache', JSON.stringify(this.cache));
+            localStorage.setItem('sync_version', this.cacheVersion);
+        } catch (e) {
+            console.error('❌ Failed to save sync cache:', e);
+        }
     }
 
     // Helper to get cached data
