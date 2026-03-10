@@ -10,9 +10,11 @@ export default function Setlist() {
     const navigate = useNavigate();
 
     const { data: playlist, isSyncing: syncingPlaylist } = useSyncData('playlists', id, { resolved: true });
-    const { data: recentPlaylists } = useSyncData('playlists');
+    const { data: recentPlaylists = [] } = useSyncData('playlists');
     // Sort playlists by updated_at or created_at descending
-    const sortedRecent = [...recentPlaylists].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)).reverse();
+    const sortedRecent = Array.isArray(recentPlaylists)
+        ? [...recentPlaylists].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)).reverse()
+        : [];
 
     if (!id) {
         return (

@@ -4,11 +4,19 @@ const getSavedIp = () => {
     const isLocalHost = host === 'localhost' || host === '127.0.0.1';
     const isPublicWeb = host.includes('netlify.app') || host.includes('vercel.app') || host.includes('github.io');
 
-    // If we're accessing via an IP directly (e.g. 172.30.10.166), use that as the server IP
-    const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(host);
+    const currentHost = window.location.hostname;
+    const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(currentHost);
 
-    if (!ip && (isIp || (!isLocalHost && !isPublicWeb))) {
-        ip = host;
+    // If we're accessing via an IP directly, that should be our server IP
+    if (isIp && ip !== currentHost) {
+        console.log(`📡 Updating server IP to current host: ${currentHost}`);
+        ip = currentHost;
+        localStorage.setItem('server_ip', ip);
+    }
+
+    // Fallback for non-IP hosts (like local dev)
+    if (!ip && !isLocalHost && !isPublicWeb) {
+        ip = currentHost;
         localStorage.setItem('server_ip', ip);
     }
     return ip;

@@ -125,6 +125,16 @@ function handleMessage(sender, msg) {
             break;
 
         // ─── Live Session ───────────────────────────
+        case 'live:preselect':
+            currentState.playlistId = data.playlistId;
+            // Solo limpiar idx e item si no estamos transmitiendo en vivo a la fuerza
+            if (!currentState.isActive) {
+                currentState.songIdx = null;
+                currentState.item = null;
+            }
+            broadcast('live:state', currentState);
+            break;
+
         case 'live:start':
             currentState.isActive = true;
             if (data.playlistId) currentState.playlistId = data.playlistId;

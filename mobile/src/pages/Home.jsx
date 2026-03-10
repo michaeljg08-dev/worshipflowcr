@@ -8,8 +8,10 @@ import { useSyncData } from '../hooks/useSyncData';
 
 export default function Home() {
     const navigate = useNavigate();
-    const { data: events, isSyncing } = useSyncData('events');
-    const sortedEvents = [...events].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5);
+    const { data: events = [], isSyncing } = useSyncData('events');
+    const sortedEvents = Array.isArray(events)
+        ? [...events].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5)
+        : [];
 
     const typeMap = {
         'service': 'Culto',

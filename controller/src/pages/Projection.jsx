@@ -339,6 +339,13 @@ export default function Projection() {
         connectWS(() => setWsConnected(true), () => setWsConnected(false));
     }, []);
 
+    // Avisar al servidor cuando seleccionamos una playlist (pre-carga en los móviles)
+    useEffect(() => {
+        if (selectedPlaylistId) {
+            wsSend('live:preselect', { playlistId: selectedPlaylistId });
+        }
+    }, [selectedPlaylistId]);
+
     const sendSlide = (slide, songInfo, theme) => {
         wsSend('projection:slide', {
             type: slide?.type, label: slide?.label, content: slide?.content,
@@ -392,6 +399,7 @@ export default function Projection() {
                 projWindowRef.current = projWin;
 
                 // Forzamos fullscreen con un retraso en chrome o esperamos el fallback interior SOLAMENTE si hay 2 pantallas
+                // Window full screen logic ...
                 if (isFullscreen) {
                     let attempts = 0;
                     const fsInterval = setInterval(() => {
@@ -399,13 +407,13 @@ export default function Projection() {
                         if (++attempts > 10) clearInterval(fsInterval);
                     }, 100);
                 }
-
-                setIsLive(true);
-                setIsBlack(false);
-                wsSend('live:start', { playlistId: selectedPlaylistId, songIdx: currentSongIdx, songDetails: currentSong });
-                if (currentSlide) sendSlide(currentSlide, currentSong, config);
-                toast.info('Proyección en vivo iniciada');
             };
+
+            setIsLive(true);
+            setIsBlack(false);
+            wsSend('live:start', { playlistId: selectedPlaylistId, songIdx: currentSongIdx, songDetails: currentSong });
+            if (currentSlide) sendSlide(currentSlide, currentSong, config);
+            toast.info('Proyección en vivo iniciada');
 
             if (screenDetails) {
                 launchDisplay(screenDetails);

@@ -10,11 +10,10 @@ export function useSyncData(table, id = null, options = {}) {
 
     const [isSyncing, setIsSyncing] = useState(syncManager.isSyncing);
     const [data, setData] = useState(() => {
-        // If an ID is conditionally passed but currently falsy, return null instead of a full array list
-        // to prevent object-spread array corruption in consumers (e.g. {...fullData, ...minimalData})
-        if (id === null || id === undefined) return null;
-
-        return options.resolved ? resolve(table, id) : syncManager.get(table, id);
+        if (id !== undefined && id !== null) {
+            return options.resolved ? resolve(table, id) : syncManager.get(table, id);
+        }
+        return syncManager.list(table);
     });
 
     useEffect(() => {
@@ -25,7 +24,7 @@ export function useSyncData(table, id = null, options = {}) {
         if (id !== undefined && id !== null) {
             setData(options.resolved ? resolve(table, id) : syncManager.get(table, id));
         } else {
-            setData(null);
+            setData(syncManager.list(table));
         }
 
         const unsubscribe = syncManager.subscribe((cache) => {
@@ -35,7 +34,8 @@ export function useSyncData(table, id = null, options = {}) {
                 // Simple equality check to avoid redundant state updates
                 setData(prev => JSON.stringify(prev) === JSON.stringify(newData) ? prev : newData);
             } else {
-                setData(null);
+                const newList = cache[table] ? Object.values(cache[table]) : [];
+                setData(prev => JSON.stringify(prev) === JSON.stringify(newList) ? prev : newList);
             }
         });
 

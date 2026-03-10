@@ -9,9 +9,10 @@ export default function Songs() {
     const [search, setSearch] = useState('');
 
     const filteredSongs = useMemo(() => {
-        if (!search) return [...songs].sort((a, b) => a.title.localeCompare(b.title));
+        const songList = Array.isArray(songs) ? songs : [];
+        if (!search) return [...songList].sort((a, b) => a.title.localeCompare(b.title));
         const lowerSearch = search.toLowerCase();
-        return songs.filter(s =>
+        return songList.filter(s =>
             s.title.toLowerCase().includes(lowerSearch) ||
             (s.author && s.author.toLowerCase().includes(lowerSearch))
         ).sort((a, b) => a.title.localeCompare(b.title));
