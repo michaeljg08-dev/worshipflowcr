@@ -364,8 +364,27 @@ export default function Projection() {
         const safe = Math.max(0, Math.min(idx, songs.length - 1));
         setCurrentSongIdx(safe);
         setCurrentSlideIdx(0);
-        wsSend('live:song', { songIdx: safe, title: songs[safe]?.title, songDetails: songs[safe] });
+
+        const nextSong = songs[safe];
+        wsSend('live:song', { songIdx: safe, title: nextSong?.title, songDetails: nextSong });
+
+        // If we are live, we want the projection to jump to the first slide of the new song immediately
+        // However, songDetail for the NEW song index might not be loaded yet in this render cycle.
+        // We'll let a useEffect handle the auto-projection once songDetail is ready.
     };
+
+    // Auto-project first slide when song changes in live mode
+    useEffect(() => {
+        if (isLive && !isBlack && slides.length > 0 && currentSlideIdx === 0) {
+            // Only auto-sync if we just changed the song (or just started live)
+            // We use a ref to track the last synced song+slide to avoid redundant broadcasts
+            const syncKey = `${currentSong?.song_id}:0`;
+            if (window._lastSyncedKey !== syncKey) {
+                window._lastSyncedKey = syncKey;
+                sendSlide(slides[0], currentSong, config);
+            }
+        }
+    }, [isLive, isBlack, currentSong?.song_id, slides, currentSlideIdx, config]);
 
     const handleGoLive = () => {
         if (!currentSlide) { toast.error('Selecciona una canción y sección'); return; }

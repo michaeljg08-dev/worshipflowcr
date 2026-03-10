@@ -181,7 +181,14 @@ export default function Live() {
 
         const unsubState = wsOn('live:state', (state) => {
             console.log('Live state update:', state);
-            setLiveState(state || { isActive: false, playlistId: null, songIdx: null, item: null });
+            setLiveState(prev => {
+                // If song changes, reset the section label to avoid "jumping" to a stale position in the new song
+                if (state?.songIdx !== prev.songIdx || state?.item?.data?.song_id !== prev.item?.data?.song_id) {
+                    console.log('🎵 Song changed, resetting section label');
+                    setCurrentSectionLabel(null);
+                }
+                return state || { isActive: false, playlistId: null, songIdx: null, item: null };
+            });
         });
 
         const unsubPos = wsOn('live:position', (data) => {
